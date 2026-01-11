@@ -209,6 +209,7 @@
         <div id="loading" class="text-center py-20 bg-white/50 backdrop-blur-sm rounded-3xl mx-auto max-w-sm">
             <i class="fas fa-spinner fa-spin text-3xl text-rose-400 mb-4"></i>
             <p class="text-gray-500 font-medium">Sedang menyiapkan etalase kue...</p>
+            <p id="config-error" class="text-red-500 text-xs mt-4 hidden px-4">Error: Konfigurasi Firebase Belum Diatur (Lihat kode)</p>
         </div>
 
         <!-- Menu Grid Container -->
@@ -269,8 +270,18 @@
                     <i class="fab fa-whatsapp text-2xl"></i> Chat Admin (WA)
                 </a>
             </div>
+
+            <!-- Social & Github Connection -->
+            <div class="flex justify-center items-center gap-4 mt-8">
+                <a href="https://instagram.com" target="_blank" class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-rose-500 hover:bg-gradient-to-tr hover:from-purple-500 hover:to-orange-500 hover:text-white hover:scale-110 transition duration-300">
+                    <i class="fab fa-instagram text-lg"></i>
+                </a>
+                <a href="https://github.com" target="_blank" class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gray-700 hover:bg-gray-800 hover:text-white hover:scale-110 transition duration-300" title="Visit our GitHub">
+                    <i class="fab fa-github text-lg"></i>
+                </a>
+            </div>
             
-            <p class="text-gray-400 text-xs mt-12 font-medium tracking-wide">
+            <p class="text-gray-400 text-xs mt-6 font-medium tracking-wide">
                 &copy; 2026 DAPUR KUE LEBARAN • MADE WITH LOVE ❤️
             </p>
         </div>
@@ -440,22 +451,47 @@
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // Configuration
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // --- KONFIGURASI FIREBASE (WAJIB DIISI) ---
+        let firebaseConfig;
+        let appId = 'default-app-id';
+
+        // Logika deteksi environment (Editor vs Production/GitHub)
+        try {
+            if (typeof __firebase_config !== 'undefined') {
+                // Berjalan di dalam Editor Immersive (Preview)
+                firebaseConfig = JSON.parse(__firebase_config);
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            } else {
+                // Berjalan di GitHub / Hosting lain (Production)
+                // ANDA HARUS MENGISI BAGIAN INI DENGAN DATA DARI FIREBASE CONSOLE ANDA
+                firebaseConfig = {
+                    apiKey: "AIzaSyD17rzkYiknKqrYKzy5OxzaGHJQ_rz4Kqs",
+                    authDomain: "dapurraline-fe5b7.firebaseapp.com",
+                    projectId: "dapurraline-fe5b7",
+                    storageBucket: "dapurraline-fe5b7.firebasestorage.app",
+                    messagingSenderId: "492929761942",
+                    appId: "1:492929761942:web:7aab20a5b2340facdf38b7"
+                };
+            }
+        } catch (e) {
+            console.error("Config Error:", e);
+            document.getElementById('config-error').classList.remove('hidden');
+        }
+
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const COLLECTION_NAME = "menu_items";
         const phoneNumber = "6285179895901"; 
         
-        // --- API KEY UNTUK AI ---
-        const apiKey = ""; // Diset otomatis oleh environment runtime
+        // --- API KEY UNTUK AI (Opsional untuk GitHub) ---
+        const apiKey = ""; 
 
         let isAdmin = false;
         let deleteIdTarget = null;
         let unsubscribeSnapshot = null; 
-        let currentItems = []; // Menyimpan data lokal untuk re-render cepat
+        let currentItems = [];
 
         // 1. Setup Auth Listener
         onAuthStateChanged(auth, (user) => {
@@ -481,7 +517,9 @@
                 }
             } catch (error) {
                 console.error("Auth error:", error);
-                document.getElementById('loading').innerHTML = '<div class="bg-red-50 p-4 rounded-xl text-red-600 text-sm font-medium">Gagal memuat data. Silakan refresh.</div>';
+                const loadingText = document.querySelector('#loading p');
+                if(loadingText) loadingText.innerText = "Gagal memuat data (Auth Error). Cek konfigurasi.";
+                document.getElementById('config-error').classList.remove('hidden');
             }
         };
 
@@ -489,6 +527,8 @@
 
         // 3. Data Logic
         function setupDataListener() {
+            // Perhatikan path collection: sesuaikan dengan security rules Anda
+            // Jika di GitHub error permission, pastikan rules Firestore mengizinkan read/write
             const q = collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME);
             
             unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
@@ -497,7 +537,7 @@
                     items.push({ id: doc.id, ...doc.data() });
                 });
 
-                currentItems = items; // Simpan ke variable global
+                currentItems = items;
 
                 if (items.length === 0 && snapshot.metadata.hasPendingWrites === false) {
                     seedDefaultData();
@@ -507,9 +547,9 @@
                 }
             }, (error) => {
                 console.error("Error fetching data:", error);
-                if(error.code !== 'permission-denied') {
-                    document.getElementById('loading').innerHTML = '<div class="bg-red-50 p-4 rounded-xl text-red-600 text-sm font-medium">Koneksi terputus.</div>';
-                }
+                const loadingText = document.querySelector('#loading p');
+                if(loadingText) loadingText.innerText = "Koneksi Database Gagal.";
+                document.getElementById('config-error').classList.remove('hidden');
             });
         }
 
