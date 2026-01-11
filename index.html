@@ -447,8 +447,10 @@
 
     <!-- Firebase Scripts -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
         // --- KONFIGURASI FIREBASE (WAJIB DIISI) ---
         let firebaseConfig;
@@ -463,15 +465,15 @@
             } else {
                 // Berjalan di GitHub / Hosting lain (Production)
                 // ANDA HARUS MENGISI BAGIAN INI DENGAN DATA DARI FIREBASE CONSOLE ANDA
-                const firebaseConfig = {
-    apiKey: "AIzaSyD17rzkYiknKqrYKzy5OxzaGHJQ_rz4Kqs",
-    authDomain: "dapurraline-fe5b7.firebaseapp.com",
-    projectId: "dapurraline-fe5b7",
-    storageBucket: "dapurraline-fe5b7.firebasestorage.app",
-    messagingSenderId: "492929761942",
-    appId: "1:492929761942:web:7aab20a5b2340facdf38b7",
-    measurementId: "G-6HY0KNJLGV"
-  };
+                firebaseConfig = {
+                    apiKey: "AIzaSyD17rzkYiknKqrYKzy5OxzaGHJQ_rz4Kqs",
+                    authDomain: "dapurraline-fe5b7.firebaseapp.com",
+                    projectId: "dapurraline-fe5b7",
+                    storageBucket: "dapurraline-fe5b7.firebasestorage.app",
+                    messagingSenderId: "492929761942",
+                    appId: "1:492929761942:web:7aab20a5b2340facdf38b7",
+                    measurementId: "G-6HY0KNJLGV"
+                };
             }
         } catch (e) {
             console.error("Config Error:", e);
@@ -480,6 +482,7 @@
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app); // Initialize Analytics
         const auth = getAuth(app);
         const db = getFirestore(app);
         const COLLECTION_NAME = "menu_items";
