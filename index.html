@@ -6,8 +6,6 @@
     <title>Katalog Kue Lebaran Premium</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Library untuk PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -200,11 +198,6 @@
             <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2 font-serif">Menu Favorit Bunda</h2>
             <div class="h-1 w-24 bg-gradient-to-r from-transparent via-rose-300 to-transparent rounded-full"></div>
             <p class="text-gray-400 text-sm mt-3 italic mb-4">"Dibuat fresh by order"</p>
-            
-            <!-- Download Button -->
-            <button onclick="downloadCatalog()" class="bg-white text-rose-500 border border-rose-200 px-5 py-2.5 rounded-full text-xs font-bold shadow-sm hover:bg-rose-50 hover:shadow-md transition flex items-center gap-2 active:scale-95 group">
-                <i class="fas fa-file-pdf text-lg group-hover:-translate-y-0.5 transition-transform"></i> <span>Download Katalog</span>
-            </button>
         </div>
 
         <!-- Floating Add Button (Admin Only) -->
@@ -526,7 +519,7 @@
                     name: "Nastar Keju Premium",
                     price: 135000,
                     size: "500gr",
-                    image: "https://placehold.co/800x800/ffe4e6/be185d?text=Nastar+Premium",
+                    image: "",
                     desc: "Nastar klasik dengan selai nanas madu buatan sendiri, dibalut adonan butter wisman yang lumer di mulut. Favorit keluarga setiap lebaran.",
                     badge: "Best Seller"
                 },
@@ -534,7 +527,7 @@
                     name: "Putri Salju Mede",
                     price: 125000,
                     size: "500gr",
-                    image: "https://placehold.co/800x800/eff6ff/1d4ed8?text=Putri+Salju",
+                    image: "",
                     desc: "Sensasi dingin gula halus membalut renyahnya kacang mede sangrai. Manisnya pas, teksturnya ngeprul banget, Bun!",
                     badge: "Premium"
                 },
@@ -542,7 +535,7 @@
                     name: "Kastengel Keju Edam",
                     price: 145000,
                     size: "500gr",
-                    image: "https://placehold.co/800x800/fef3c7/b45309?text=Kastengel+Keju",
+                    image: "",
                     desc: "Gurihnya keju edam asli berpadu dengan butter berkualitas. Teksturnya renyah dan 'ngeju' banget sampai gigitan terakhir.",
                     badge: "Limited"
                 }
@@ -566,12 +559,27 @@
                 
                 const itemSize = item.size || "500gr";
                 
-                // ROBUST IMAGE HANDLING FOR BROKEN URLS
-                let imgSrc = item.image;
-                // Check for broken unsplash links from previous versions or missing images
-                if (!imgSrc || imgSrc.includes('images.unsplash.com')) {
-                    const cleanName = item.name ? encodeURIComponent(item.name.substring(0, 15)) : 'Kue';
-                    imgSrc = `https://placehold.co/600x400/ffe4e6/be185d?text=${cleanName}`;
+                // --- IMAGE HANDLING LOGIC (Web) ---
+                // We use a container that will show either an IMG or a DIV with text
+                let imageElement = '';
+                const hasValidImage = item.image && !item.image.includes('images.unsplash.com');
+
+                if (hasValidImage) {
+                    imageElement = `
+                        <img src="${item.image}" alt="${item.name}" 
+                             class="w-full h-full object-cover transition duration-700 ease-in-out transform group-hover:scale-110"
+                             loading="lazy"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="hidden w-full h-full bg-rose-50 flex items-center justify-center text-center p-4">
+                            <span class="font-serif text-2xl text-rose-600 font-bold">${item.name}</span>
+                        </div>
+                    `;
+                } else {
+                    imageElement = `
+                        <div class="w-full h-full bg-rose-50 flex items-center justify-center text-center p-4">
+                            <span class="font-serif text-2xl text-rose-600 font-bold">${item.name}</span>
+                        </div>
+                    `;
                 }
 
                 // Admin buttons rendered conditionally based on state, but initially hidden if not admin
@@ -586,12 +594,9 @@
                 const card = `
                 <div class="glass-card rounded-[2rem] overflow-hidden hover:shadow-2xl hover:shadow-rose-100 transition-all duration-500 group flex flex-col h-full transform hover:-translate-y-1">
                     <div class="relative h-64 overflow-hidden p-3">
-                        <div class="w-full h-full rounded-[1.5rem] overflow-hidden relative">
-                            <img src="${imgSrc}" alt="${item.name}" 
-                                class="w-full h-full object-cover transition duration-700 ease-in-out transform group-hover:scale-110"
-                                loading="lazy"
-                                onerror="this.onerror=null; this.src='https://placehold.co/600x400/ffe4e6/be185d?text=Kue';">
-                            <div class="absolute inset-0 bg-black/5 group-hover:bg-black/0 transition-colors"></div>
+                        <div class="w-full h-full rounded-[1.5rem] overflow-hidden relative bg-rose-50">
+                            ${imageElement}
+                            <div class="absolute inset-0 bg-black/5 group-hover:bg-black/0 transition-colors pointer-events-none"></div>
                         </div>
                         ${badgeHtml}
                         ${adminControls}
@@ -630,93 +635,6 @@
             toast.innerText = message;
             toast.className = "show";
             setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
-        }
-
-        // --- PDF GENERATION FEATURE ---
-        window.downloadCatalog = function() {
-            if (!currentItems || currentItems.length === 0) {
-                showToast("Belum ada menu untuk didownload");
-                return;
-            }
-
-            showToast("Sedang menyiapkan katalog PDF...");
-            
-            // Create container for PDF content (off-screen but rendered)
-            const container = document.createElement('div');
-            container.id = 'pdf-content';
-            container.style.width = '800px'; // Fixed width for A4 consistency
-            container.style.padding = '40px';
-            container.style.backgroundColor = '#fff';
-            container.style.fontFamily = 'Poppins, sans-serif';
-            
-            // Header
-            let html = `
-                <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #fecdd3; padding-bottom: 20px;">
-                    <h1 style="font-family: 'Playfair Display', serif; font-size: 32px; color: #be185d; margin-bottom: 5px;">Dapur Lebaran</h1>
-                    <p style="font-size: 14px; color: #666; letter-spacing: 2px; text-transform: uppercase;">Premium Cookies Catalogue 2026</p>
-                    <p style="font-size: 12px; color: #888; margin-top: 10px;">Pemesanan via WhatsApp: ${phoneNumber.replace('62','0')}</p>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            `;
-
-            // Items
-            currentItems.forEach(item => {
-                // Use the same robust fallback logic for PDF
-                let imgSrc = item.image;
-                if (!imgSrc || imgSrc.includes('images.unsplash.com')) {
-                    const cleanName = item.name ? encodeURIComponent(item.name.substring(0, 15)) : 'Kue';
-                    imgSrc = `https://placehold.co/600x400/ffe4e6/be185d?text=${cleanName}`;
-                }
-                
-                html += `
-                    <div style="border: 1px solid #ffe4e6; border-radius: 15px; overflow: hidden; background: #fff;">
-                        <div style="height: 180px; overflow: hidden;">
-                            <img src="${imgSrc}" style="width: 100%; height: 100%; object-fit: cover;" crossorigin="anonymous">
-                        </div>
-                        <div style="padding: 15px;">
-                            <h3 style="font-family: 'Playfair Display', serif; font-size: 16px; color: #1f2937; margin: 0 0 5px 0; font-weight: bold;">${item.name}</h3>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                <span style="color: #f43f5e; font-weight: bold; font-size: 14px;">Rp ${parseInt(item.price).toLocaleString('id-ID')}</span>
-                                <span style="font-size: 10px; color: #9ca3af; background: #f9fafb; padding: 2px 6px; border-radius: 4px;">${item.size || '500gr'}</span>
-                            </div>
-                            <p style="font-size: 11px; color: #6b7280; line-height: 1.4; margin: 0;">${item.desc || 'Kue lezat.'}</p>
-                        </div>
-                    </div>
-                `;
-            });
-
-            html += `</div>
-                <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #9ca3af;">
-                    <p>Dibuat dengan penuh cinta ❤️ Dapur Lebaran</p>
-                </div>
-            `;
-
-            container.innerHTML = html;
-            
-            // Must append to body to render images, but hide it visually
-            container.style.position = 'fixed';
-            container.style.left = '-9999px';
-            container.style.top = '0';
-            document.body.appendChild(container);
-
-            // Options
-            const opt = {
-                margin: 10,
-                filename: 'Katalog-Dapur-Lebaran.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            // Generate
-            html2pdf().from(container).set(opt).save().then(() => {
-                document.body.removeChild(container);
-                showToast("Katalog berhasil didownload! 📄");
-            }).catch(err => {
-                console.error(err);
-                document.body.removeChild(container);
-                showToast("Gagal membuat PDF. Coba lagi.");
-            });
         }
 
         // 5. Admin Logic
@@ -1030,8 +948,9 @@
             }
 
             if(!finalImage) {
-                showToast("Mohon pilih foto cantik kuenya ya!");
-                return;
+                // If no image is selected, we can allow saving and it will render the fallback text
+                // However, to keep it clean, let's treat empty image as intent to use fallback
+                finalImage = ""; // Explicitly empty
             }
             
             // Firestore limit check (approx 1MB limit, keeping safe buffer)
